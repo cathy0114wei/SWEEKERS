@@ -15,9 +15,10 @@ logging.basicConfig(level=logging.INFO)
 
 producer = KafkaProducer(bootstrap_servers='127.0.0.1:9092', value_serializer=lambda K:dumps(K).encode('utf-8'))
 
-with open('job_postings.csv', 'r') as file:
-  reader = csv.reader(file, delimiter = '\t')
-  for messages in reader:
-    producer.send('jobs', messages)
-    producer.flush()
+with open('monster_com-job_sample.csv', 'r') as file:
+  reader = csv.reader(file)
+  for row in reader:
+  	message = " ".join(row)
+  	producer.send('jobs', message)
+  	producer.flush()
     time.sleep(5)
