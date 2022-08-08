@@ -1,5 +1,10 @@
+import pandas as pd
+from serpapi import GoogleSearch
+import datetime as dt
+
+import config
+
 import os
-from datetime import datetime
 import time
 import threading
 import json
@@ -15,10 +20,47 @@ logging.basicConfig(level=logging.INFO)
 
 producer = KafkaProducer(bootstrap_servers='127.0.0.1:9092', value_serializer=lambda K:dumps(K).encode('utf-8'))
 
-with open('monster_com-job_sample.csv', 'r') as file:
-  reader = csv.reader(file)
-  for row in reader:
-  	message = " ".join(row)
-  	producer.send('jobs', message)
-  	producer.flush()
-    time.sleep(5)
+def google_job_search(job_title, city_state, post_age="week"):
+    '''
+    job_title(str): "Data Scientist", "Data Analyst"
+    city_state(str): "Denver, CO"
+    post_age,(str)(optional): "3day", "week", "month"
+    '''
+    params = {
+            "engine": "google_jobs",
+            "q": f"{job_title} {city_state}",
+            "hl": "en",
+            "api_key": "08f737f222f10ea16edbc621d444fbb04e8490311439ef55629e085f577fab6e",
+            "chips":f"date_posted:{post_age}", 
+            }
+    search = GoogleSearch(params)
+    results = search.get_dict()
+    jobs_results = results['jobs_results']
+    job_columns = ['title', 'company_name', 'location', 'description']
+    df = pd.DataFrame(jobs_results, columns=job_columns)
+    return df
+
+
+def main(job_list, city_state_list):
+    job_columns = ['title', 'company_name', 'location', 'description']
+    for job in job_list:
+        for city_state in city_state_list:
+            df_10jobs = google_job_search(job, city_state, post_age="month")
+            #main_df = main_df.append(df_10jobs)
+            date = dt.datetime.today().strftime('%Y-%m-%d')
+            df_10jobs['retrieve_date'] = date
+            for indices, row in df_10jobs.iterrows():
+                print(row)
+                message = " ".join(row)
+                producer.send('jobs_google', message)
+                producer.flush()
+                time.sleep(5)
+
+if __name__ == "__main__":
+    job_list = ["Data Scientist", "Data Analyst", "Data Engineer", 
+                "Machine Learning Engineer", "Business Intelligence Analyst"]
+    city_state_list = ["Atlanta, GA", "Austin, TX", "Boston, MA", "Chicago, IL", 
+                    "Denver, CO", "Dallas-Ft. Worth, TX", "Los Angeles, CA",
+                    "New York City, NY", "San Francisco, CA", "Seattle, WA"]
+    main(job_list, city_state_list)
+    #print(result_df)
