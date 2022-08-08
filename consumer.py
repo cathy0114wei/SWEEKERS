@@ -3,7 +3,7 @@ import json
 import time
 
 consumer = KafkaConsumer(
-    'jobs',
+    'jobs_google',
      bootstrap_servers=['127.0.0.1:9092'],
      auto_offset_reset='earliest',
      enable_auto_commit=True,
